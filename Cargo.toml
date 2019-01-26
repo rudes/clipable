@@ -1,0 +1,8 @@
+[package]
+name = "clipable"
+version = "0.1.0"
+authors = ["rudes"]
+edition = "2018"
+
+[dependencies]
+daemon = { git = "https://github.com/bozaro/daemon-rs" }
