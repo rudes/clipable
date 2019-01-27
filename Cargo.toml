@@ -5,4 +5,5 @@ authors = ["rudes"]
 edition = "2018"
 
 [dependencies]
-daemon = { git = "https://github.com/bozaro/daemon-rs" }
+notify = "4.0.7"
+windows-service = "0.1.0"
