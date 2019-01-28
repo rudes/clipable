@@ -7,6 +7,8 @@ reg add "HKLM\SOFTWARE\Clipable" /v clipablePassword /t REG_SZ /d CHANGEME
 REM Set to the directory you want to watch : C:\Users\rudes\Desktop
 reg add "HKLM\SOFTWARE\Clipable" /v clipableFolder /t REG_SZ /d CHANGEME
 touch CHANGEME\clipable.txt
-sc create Clipable start=auto binPath= %cd%"\clipable.exe"
+
+
+sc create Clipable start=auto binPath= %~dp0\clipable.exe
 sc description Clipable "Uploads clips from Documents/Clipable to Streamable.com"
 sc start Clipable
