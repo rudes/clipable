@@ -1,0 +1,12 @@
+@echo off
+REM Change the fields below and then rename to run_once.bat
+REM Set to your streamable username : example@website.com
+reg add "HKLM\SOFTWARE\Clipable" /v clipableUsername /t REG_SZ /d CHANGEME
+REM Set to your straemable password : PaSsWoRd
+reg add "HKLM\SOFTWARE\Clipable" /v clipablePassword /t REG_SZ /d CHANGEME
+REM Set to the directory you want to watch : C:\Users\rudes\Desktop
+reg add "HKLM\SOFTWARE\Clipable" /v clipableFolder /t REG_SZ /d CHANGEME
+touch CHANGEME\clipable.txt
+sc create Clipable start=auto binPath= %cd%"\clipable.exe"
+sc description Clipable "Uploads clips from Documents/Clipable to Streamable.com"
+sc start Clipable

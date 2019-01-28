@@ -12,6 +12,8 @@ mod clip_service {
 	use std::time::Duration;
 	use std::fs::OpenOptions;
 	use std::io::Write;
+	use reqwest::{multipart, Client};
+	use serde::Deserialize;
 	use notify::{Watcher, RecursiveMode, watcher};
 	use windows_service::service::{
 		ServiceControl, ServiceControlAccept, ServiceExitCode,
@@ -22,8 +24,13 @@ mod clip_service {
 	use windows_service::Result;
 
 	const SERVICE_NAME: &'static str = "Clipable";
-	const SERVICE_PATH: &'static str = "C:\\Users\\rudes\\Desktop";
 	const SERVICE_TYPE: ServiceType = ServiceType::OwnProcess;
+
+	#[derive(Deserialize)]
+	struct streamRes {
+		status: u32,
+		shortcode: String,
+	}
 
 	pub fn run() -> Result<()> {
 		service_dispatcher::start(SERVICE_NAME, ffi_service_main)
@@ -32,7 +39,7 @@ mod clip_service {
 	define_windows_service!(ffi_service_main, clip_srv);
 
 	pub fn clip_srv(_arguments: Vec<OsString>) {
-		if let Err(_e) = run_service () {
+		if let Err(_e) = run_service() {
 			// log error
 		}
 	}
@@ -40,6 +47,7 @@ mod clip_service {
 	pub fn run_service() -> Result<()> {
 		let (shut_tx, shut_rx) = mpsc::channel();
 		let (watcher_tx, watcher_rx) = mpsc::channel();
+		let folder = ;
 
 		let event_handler = move |control_event| -> ServiceControlHandlerResult {
 			match control_event {
@@ -56,7 +64,7 @@ mod clip_service {
 
 		let status_handle = service_control_handler::register(SERVICE_NAME, event_handler)?;
 		let mut watcher = watcher(watcher_tx, Duration::from_secs(2)).unwrap();
-		watcher.watch(SERVICE_PATH, RecursiveMode::Recursive).unwrap();
+		watcher.watch(folder, RecursiveMode::Recursive).unwrap();
 
 		status_handle.set_service_status(ServiceStatus {
 			service_type: SERVICE_TYPE,
@@ -99,10 +107,23 @@ mod clip_service {
 		if path.is_none() {
 			return;
 		}
+		if path.unwrap().extension().unwrap() != ".mp4" {
+			return;
+		}
+		let username = ;
+		let password = ;
+		let folder = ;
+		let client = Client::new();
+		let filename = path.unwrap().file_name().unwrap().to_str().unwrap();
+		let full_filename = path.unwrap().to_str().unwrap();
+		let form = multipart::Form::new().file("file", full_filename).unwrap();
+		let mut response = client.post("https://api.streamable.com/upload")
+							 .basic_auth(username, Some(password))
+							 .multipart(form).send().unwrap();
+		let resJson: streamRes = response.json().unwrap();
 		let mut file = OpenOptions::new().append(true)
-										 .open("C:\\Users\\rudes\\Desktop\\clipable.txt")
+										 .open(format!("{}{}", folder, "\\clipable.txt"))
 										 .expect("Can't open file");
-		let data = path.unwrap().to_str().unwrap();
-		writeln!(file, "{}", data).expect("Unable to write data");
+		writeln!(file, "{} : https://streamable.com/{}", filename, resJson.shortcode).expect("Unable to write data");
 	}
 }
