@@ -1,6 +1,6 @@
 [package]
 name = "clipable"
-version = "0.1.0"
+version = "1.1.0"
 authors = ["rudes"]
 edition = "2018"
 description = "A small windows service that monitors a given folder and uploads any new .mp4 files to your streamable account"
