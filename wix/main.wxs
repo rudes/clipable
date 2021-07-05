@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <!--
+      Please do not remove these pre-processor If-Else blocks. These are used with
+      the `cargo wix` subcommand to automatically determine the installation
+      destination for 32-bit versus 64-bit installers. Removal of these lines will
+      cause installation errors.
+    -->
+    <?define UpgradeCode="9DFC014C-5F8B-4855-AB4F-8DD707CF88A2" ?>
+    <?if $(var.Platform) = x64 ?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+    <?else ?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+    <?endif ?>
+
+    <Product Id="*" Name="clipable" Language="1033" Version="$(var.Version)" Manufacturer="rudes" UpgradeCode="$(var.UpgradeCode)">
+        <Package Id="*" InstallerVersion="450" Compressed="yes" InstallScope="perMachine" Description="service to upload to streamable" Comments="Installs clipable $(var.Version)" Platform="$(var.Platform)" />
+        <MajorUpgrade DowngradeErrorMessage="The same or a newer version of this product is already installed." />
+        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+        <Property Id="DiskPrompt" Value="clipable Installation" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+
+            <Component Id="registry0" Guid="$(var.UpgradeCode)">
+                <RegistryKey Root="HKLM" Key="SOFTWARE\rudes\Clipable">
+                    <RegistryValue Name="clipableFolder" Value="[CLIPABLEFOLDER]" Type="string" KeyPath="yes" />
+                    <RegistryValue Name="clipablePassword" Value="[CLIPABLEPASSWORD]" Type= "string" />
+                    <RegistryValue Name="clipableUsername" Value="[CLIPABLEUSERNAME]" Type= "string" />
+                </RegistryKey>
+            </Component>
+
+            <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+                <Directory Id="APPLICATIONFOLDER" Name="clipable">
+                    <Directory Id="Bin" Name="bin">
+
+                        <Component Id="binary0" Guid="*" Win64="$(var.Win64)">
+                            <File Id="exe0" Name="clipable.exe" DiskId="1" Source="target\$(var.Profile)\clipable.exe" KeyPath="yes" />
+                            <ServiceInstall Id="ServiceInstaller" Account="LocalSystem" Description="Monitors provided folder for new mp4 files and uploads them to Streamable." DisplayName="clipable" ErrorControl="normal" LoadOrderGroup="NetworkProvider" Name="clipableService" Start="auto" Type="ownProcess" Vital="yes" />
+                            <ServiceControl Id="ServiceControl" Name="clipableService" Start="install" Stop="both" Remove="uninstall" />
+                            <RemoveFile Id="RemoveFilesFromAppDirectory" Name="*.*" On="uninstall" />
+                            <Util:EventSource xmlns:Util="http://schemas.microsoft.com/wix/UtilExtension" Name="clipable" Log="Application" EventMessageFile="[APPLICATIONFOLDER]bin\clipable.exe"
+/>
+                        </Component>
+
+                    </Directory>
+                </Directory>
+            </Directory>
+
+            <Directory Id="CLIPABLEFOLDER" Name="clipable">
+                <Component Id="CreateClipableFolder" Guid="1B10B7D7-D68D-47EC-8B77-00D5DCE20017">
+                    <CreateFolder />
+                </Component>
+            </Directory>
+
+        </Directory>
+        <Feature Id="Binaries" Title="clipable" Description="Installs all binaries and the service." Level="1" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no" Display="expand" Absent="disallow">
+            <ComponentRef Id="registry0" />
+            <ComponentRef Id="CreateClipableFolder" />
+            <ComponentRef Id="binary0" />
+        </Feature>
+
+        <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONFOLDER" />
+        <Property Id="WIXUI_CLIPABLEDIR" Value="CLIPABLEFOLDER" />
+        <Property Id="WIXUI_CLIPABLEUSERNAME" Value="CLIPABLEUSERNAME" />
+        <Property Id="WIXUI_CLIPABLEPASSWORD" Value="CLIPABLEPASSWORD" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/rudes/clipable" />
+
+        <UI Id="WixUI_CLIPABLE">
+
+            <Dialog Id="ClipableDlg" Width="370" Height="270" Title="Installation Options">
+                <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="Clipable REQUIRED Information" />
+                <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="24" Transparent="yes" NoPrefix="yes" Text="REQUIRED: Provide your Streamable Username, Password, and a Folder clipable will monitor for new mp4 files." />
+                <Control Id="BannerLine" Type="Line" X="0" Y="56" Width="370" Height="2" />
+                <Control Type="Text" Id="UserLabel" Width="88" Height="9" X="56" Y="90" Text="Streamable Username:" />
+                <Control Type="Edit" Id="UserEdit" Width="151" Height="15" X="165" Y="86" Property="WIXUI_CLIPABLEUSERNAME" Indirect="yes" />
+                <Control Type="Text" Id="PassLabel" Width="89" Height="17" X="56" Y="116" Text="Streamable Password:" />
+                <Control Type="Edit" Id="PassEdit" Width="151" Height="15" X="165" Y="112" Property="WIXUI_CLIPABLEPASSWORD" Indirect="yes" />
+                <Control Type="Text" Id="FolderLabel" Width="261" Height="17" X="56" Y="146" Text="Clipable Folder, you will place mp4 files here to be sent to Streamable" />
+                <Control Id="ClipableDirectory" Type="PathEdit" X="60" Y="169" Width="200" Height="15" Property="WIXUI_CLIPABLEDIR" Indirect="yes" />
+                <Control Id="Browse" Type="PushButton" X="270" Y="169" Width="56" Height="15" Text="Browse" />
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Next" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="Back" />
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+            </Dialog>
+
+            <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+            <Property Id="WixUI_Mode" Value="InstallDir" />
+
+            <DialogRef Id="BrowseDlg" />
+            <DialogRef Id="DiskCostDlg" />
+            <DialogRef Id="ErrorDlg" />
+            <DialogRef Id="FatalError" />
+            <DialogRef Id="FilesInUse" />
+            <DialogRef Id="MsiRMFilesInUse" />
+            <DialogRef Id="PrepareDlg" />
+            <DialogRef Id="ProgressDlg" />
+            <DialogRef Id="ResumeDlg" />
+            <DialogRef Id="UserExit" />
+
+            <DialogRef Id="ClipableDlg" />
+
+            <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+            <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">NOT Installed</Publish>
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
+
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ClipableDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+
+            <Publish Dialog="ClipableDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+            <Publish Dialog="ClipableDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="ClipableDlg" Control="Browse" Property="_BrowseProperty" Value="[WIXUI_CLIPABLEDIR]" Order="1">1</Publish>
+            <Publish Dialog="ClipableDlg" Control="Browse" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ClipableDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+
+            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+        </UI>
+
+        <UIRef Id="WixUI_Common" />
+
+    </Product>
+</Wix>
