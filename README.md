@@ -2,11 +2,7 @@
 
 ## Installation
 
-Edit run_once.bat.CHANGEME and then rename and execute
-
-## Testing
-
-```Batch
-cargo build
-dev_install.bat
+```bash
+cargo wix
 ```
+Then run the generated MSI in target/wix
