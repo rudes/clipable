@@ -1,40 +1,31 @@
 #[cfg(windows)]
-extern crate windows_service;
-
-use log::info;
-use std::thread;
-use std::io::Write;
+use std::time;
+use time::Duration;
 use winreg::RegKey;
-use std::sync::mpsc;
 use serde::Deserialize;
-use std::time::Duration;
-use std::fs::OpenOptions;
 use windows_service::Result;
-use reqwest::{multipart, Client};
 use winreg::enums::HKEY_LOCAL_MACHINE;
-use notify::{Watcher, RecursiveMode, watcher};
-use windows_service::service::{
-	ServiceControl, ServiceControlAccept, ServiceExitCode,
-	ServiceState, ServiceStatus, ServiceType,
-};
-use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
 
-pub const SERVICE_NAME: &'static str = "Clipable";
-const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
-
-#[allow(dead_code)]
 #[derive(Deserialize)]
 struct StreamResponse {
-	status: u32,
 	shortcode: String,
 }
 
+pub const SERVICE_NAME: &'static str = "Clipable";
+
 pub fn run_service() -> Result<()> {
+	use std::sync::mpsc;
+	use notify::{Watcher, RecursiveMode, watcher};
 	let (shut_tx, shut_rx) = mpsc::channel();
 	let (watcher_tx, watcher_rx) = mpsc::channel();
 	let key = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\rudes\\Clipable").unwrap();
 	let folder: String = key.get_value("clipableFolder").unwrap();
 
+	use windows_service::service::{
+		ServiceControl, ServiceControlAccept, ServiceExitCode,
+		ServiceState, ServiceStatus, ServiceType,
+	};
+	use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
 	let event_handler = move |control_event| -> ServiceControlHandlerResult {
 		match control_event {
 			ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
@@ -55,7 +46,7 @@ pub fn run_service() -> Result<()> {
 	status_handle.set_service_status(ServiceStatus {
 		checkpoint: 0,
 		process_id: None,
-		service_type: SERVICE_TYPE,
+		service_type: ServiceType::OWN_PROCESS,
 		wait_hint: Duration::default(),
 		exit_code: ServiceExitCode::Win32(0),
 		current_state: ServiceState::Running,
@@ -76,7 +67,7 @@ pub fn run_service() -> Result<()> {
 	status_handle.set_service_status(ServiceStatus {
 		checkpoint: 0,
 		process_id: None,
-		service_type: SERVICE_TYPE,
+		service_type: ServiceType::OWN_PROCESS,
 		wait_hint: Duration::default(),
 		exit_code: ServiceExitCode::Win32(0),
 		current_state: ServiceState::Stopped,
@@ -88,6 +79,8 @@ pub fn run_service() -> Result<()> {
 }
 
 pub fn handle_new_file(event: notify::DebouncedEvent) {
+	use std::thread;
+	use reqwest::blocking::{multipart, Client};
 	thread::spawn(move || {
 		let path = match event {
 			notify::DebouncedEvent::Create(ref path) => Some(path),
@@ -99,25 +92,37 @@ pub fn handle_new_file(event: notify::DebouncedEvent) {
 		if path.unwrap().extension().unwrap() != "mp4" {
 			return;
 		}
-
-		let key = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\rudes\\Clipable").unwrap();
+		let filename = path.unwrap().file_name().unwrap().to_str().unwrap();
+		let key = match RegKey::predef(HKEY_LOCAL_MACHINE)
+		.open_subkey("SOFTWARE\\WOW6432Node\\rudes\\Clipable") {
+			Ok(k) => {k}
+			Err(e) => {
+				log::error!("Failed to get regkey: {}", e);
+				return;
+			}
+		};
 		let username: String = key.get_value("clipableUsername").unwrap();
 		let password: String = key.get_value("clipablePassword").unwrap();
-		let folder: String = key.get_value("clipableFolder").unwrap();
 
 		let client = Client::new();
-		let filename = path.unwrap().file_name().unwrap().to_str().unwrap();
 		let full_filename = path.unwrap().to_str().unwrap();
 		let form = multipart::Form::new().file("file", full_filename).unwrap();
-		let mut response = client.post("https://api.streamable.com/upload")
+		let response = match client.post("https://api.streamable.com/upload")
+		.timeout(Duration::new(120, 0))
 		.basic_auth(username, Some(password))
-		.multipart(form).send().unwrap();
-		let res_json: StreamResponse = response.json().unwrap();
-		let mut file = OpenOptions::new().append(true)
-		.create_new(true)
-		.open(format!("{}\\{}", folder, "clipable.txt"))
-		.expect("Can't open file");
-		writeln!(file, "{} : https://streamable.com/{}", filename, res_json.shortcode).expect("Unable to write data");
-		info!("saved {} : https://streamable.com/{}", filename, res_json.shortcode);
+		.multipart(form).send() {
+			Ok(r) => {r}
+			Err(e) => {
+				log::error!("Failed to upload file: {}\n{}", filename, e);
+				return;
+			}
+		};
+		if response.status().is_success() {
+			let res_json: StreamResponse = response.json().unwrap();
+			log::info!("Uploaded file: {} to https://streamable.com/{}", filename, res_json.shortcode);
+			return;
+		}
+		log::error!("Failed to upload file: http code: {} response: {}",
+			response.status().as_str(), response.text().unwrap());
 	});
 }

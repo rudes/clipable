@@ -1,20 +1,20 @@
 [package]
-name = "clipable"
-version = "1.1.0"
-authors = ["rudes"]
 edition = "2018"
-description = "A small windows service that monitors a given folder and uploads any new .mp4 files to your streamable account"
+name = "clipable"
+version = "1.1.1"
+authors = ["rudes"]
 readme = "README.md"
+categories = ["os::windows-apis"]
 repository = "https://github.com/rudes/clipable"
 keywords = ["clipable", "streamable", "upload", "clips"]
-categories = ["os::windows-apis"]
+description = "A small windows service that monitors a given folder and uploads any new .mp4 files to your streamable account"
 
 [dependencies]
-log = "0.4"
-winlog = "0.2.4"
+log = "0.4.14"
+winlog = "0.2.6"
 winreg = "0.6.0"
 notify = "4.0.7"
-reqwest = "0.9.9"
 serde_json = "1.0.37"
 windows-service = "0.3.1"
-serde = { version = "1.0.85", features = ["derive"] }
+serde = {version = "1.0.85", features = ["derive"]}
+reqwest = {version = "0.11.4", features = ["json", "blocking", "multipart"]}
