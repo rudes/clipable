@@ -40,7 +40,7 @@ pub fn run_service() -> Result<()> {
 	};
 
 	let status_handle = service_control_handler::register(SERVICE_NAME, event_handler)?;
-	let mut watcher = watcher(watcher_tx, Duration::from_secs(2)).unwrap();
+	let mut watcher = watcher(watcher_tx, Duration::from_secs(5)).unwrap();
 	watcher.watch(folder, RecursiveMode::NonRecursive).unwrap();
 
 	status_handle.set_service_status(ServiceStatus {
